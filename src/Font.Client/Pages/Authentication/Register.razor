@@ -1,0 +1,96 @@
+@page "/authentication/register"
+@using Font.Application.Features.Authentication.Commands.Register
+@using System.ComponentModel.DataAnnotations
+@inject IMediator Mediator
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Register - Font</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="pa-4">
+    <MudPaper Class="pa-4">
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudText Typo="Typo.h4" Class="mb-4">Register</MudText>
+
+            <MudTextField T="string" 
+                         Label="Username" 
+                         @bind-Value="model.Username"
+                         Required="true"
+                         RequiredError="Username is required"
+                         Validation="@(new StringLengthAttribute(50) {MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters"})" />
+
+            <MudTextField T="string" 
+                         Label="Email" 
+                         @bind-Value="model.Email"
+                         Required="true"
+                         RequiredError="Email is required"
+                         Validation="@(new EmailAddressAttribute() {ErrorMessage = "Invalid email address"})" />
+
+            <MudTextField T="string" 
+                         Label="Password" 
+                         @bind-Value="model.Password"
+                         Required="true"
+                         RequiredError="Password is required"
+                         InputType="InputType.Password"
+                         Validation="@(new PasswordValidationAttribute())" />
+
+            <div class="d-flex justify-space-between align-center mt-6">
+                <MudLink Href="authentication/login">Already have an account? Login</MudLink>
+                <MudButton Variant="Variant.Filled" 
+                          Color="Color.Primary" 
+                          Disabled="@(!success)"
+                          OnClick="HandleRegister">
+                    Register
+                </MudButton>
+            </div>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private MudForm form;
+    private bool success;
+    private RegisterCommand model = new();
+
+    private async Task HandleRegister()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            var result = await Mediator.Send(model);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("Registration successful! Please check your email to verify your account.", Severity.Success);
+                NavigationManager.NavigateTo("/authentication/login");
+            }
+            else
+            {
+                Snackbar.Add(result.Error, Severity.Error);
+            }
+        }
+    }
+
+    public class PasswordValidationAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object value)
+        {
+            var password = value as string;
+            if (string.IsNullOrEmpty(password)) return false;
+
+            var hasMinLength = password.Length >= 8;
+            var hasUpperCase = password.Any(char.IsUpper);
+            var hasLowerCase = password.Any(char.IsLower);
+            var hasNumber = password.Any(char.IsDigit);
+            var hasSpecialChar = password.Any(c => !char.IsLetterOrDigit(c));
+
+            return hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+        }
+
+        public override string FormatErrorMessage(string name)
+        {
+            return "Password must be at least 8 characters and contain uppercase, lowercase, number, and special character";
+        }
+    }
+} 

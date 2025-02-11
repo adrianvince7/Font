@@ -1,0 +1,19 @@
+@using MudBlazor
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="meetings" Icon="@Icons.Material.Filled.Group">Meetings</MudNavLink>
+            <MudNavLink Href="chat" Icon="@Icons.Material.Filled.Chat">Chat</MudNavLink>
+            <MudNavLink Href="profile" Icon="@Icons.Material.Filled.Person">Profile</MudNavLink>
+            <MudNavLink Href="settings" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+            <MudNavLink Href="authentication/logout" Icon="@Icons.Material.Filled.Logout">Logout</MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="about" Icon="@Icons.Material.Filled.Info">About</MudNavLink>
+            <MudNavLink Href="contact" Icon="@Icons.Material.Filled.Email">Contact</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu> 

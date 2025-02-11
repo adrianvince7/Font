@@ -1,0 +1,65 @@
+@page "/authentication/login"
+@using Font.Application.Features.Authentication.Commands.Login
+@using System.ComponentModel.DataAnnotations
+@inject IMediator Mediator
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Login - Font</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="pa-4">
+    <MudPaper Class="pa-4">
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <MudText Typo="Typo.h4" Class="mb-4">Login</MudText>
+
+            <MudTextField T="string" 
+                         Label="Email" 
+                         @bind-Value="model.Email"
+                         Required="true"
+                         RequiredError="Email is required"
+                         Validation="@(new EmailAddressAttribute() {ErrorMessage = "Invalid email address"})" />
+
+            <MudTextField T="string" 
+                         Label="Password" 
+                         @bind-Value="model.Password"
+                         Required="true"
+                         RequiredError="Password is required"
+                         InputType="InputType.Password" />
+
+            <div class="d-flex justify-space-between align-center mt-6">
+                <MudLink Href="authentication/register">Don't have an account? Register</MudLink>
+                <MudButton Variant="Variant.Filled" 
+                          Color="Color.Primary" 
+                          Disabled="@(!success)"
+                          OnClick="HandleLogin">
+                    Login
+                </MudButton>
+            </div>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private MudForm form;
+    private bool success;
+    private LoginCommand model = new();
+
+    private async Task HandleLogin()
+    {
+        await form.Validate();
+
+        if (form.IsValid)
+        {
+            var result = await Mediator.Send(model);
+
+            if (result.IsSuccess)
+            {
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                Snackbar.Add(result.Error, Severity.Error);
+            }
+        }
+    }
+} 
