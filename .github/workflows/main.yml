@@ -1,0 +1,79 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  CONFIGURATION: Release
+  WORKING_DIRECTORY: src
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: Build
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: Test
+      run: dotnet test --configuration ${{ env.CONFIGURATION }} --no-build --verbosity normal
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Deploy CloudFormation stack
+      uses: aws-actions/aws-cloudformation-github-deploy@v1
+      with:
+        name: font-app-stack
+        template: infrastructure/cloudformation.yaml
+        parameter-overrides: "Environment=Production"
+        capabilities: CAPABILITY_NAMED_IAM
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish API
+      run: |
+        dotnet publish src/Font.Api/Font.Api.csproj -c Release -o publish/api
+        aws s3 sync publish/api s3://font-app-api-${{ github.sha }}
+        aws elasticbeanstalk create-application-version \
+          --application-name font-app \
+          --version-label ${{ github.sha }} \
+          --source-bundle S3Bucket=font-app-api-${{ github.sha }},S3Key=api.zip
+
+    - name: Publish Client
+      run: |
+        dotnet publish src/Font.Client/Font.Client.csproj -c Release -o publish/client
+        aws s3 sync publish/client/wwwroot s3://font-app-client-${{ github.sha }}
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+          --paths "/*" 
